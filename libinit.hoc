@@ -1,0 +1,36 @@
+
+{
+load_file("stdlib.hoc")
+load_file("stdrun.hoc")
+}
+
+
+func issplit() {	// to avoid errors if multisplit is not loaded (if it is this function will be overwritten)
+	return 0
+}
+
+load_file("params.hoc")		// Simulation header file that initializes settings and variables
+
+load_file("stdutil.hoc")		// general utility procs and funcs (all model independent)
+
+load_file("mview.hoc")		 	// load modelview library
+
+load_file("MorphologyUtilities.hoc")	// Procs and funcs related to morphology
+
+load_file("MembraneUtilities.hoc")	// Procs and funcs related to membrane conductances
+
+load_file("SimulationUtilities.hoc")	// Procs and funcs related simulations (i.e SaveData())
+
+load_file("CurrentInjections.hoc")	// current injection simulation procedures
+
+if (verbosity > 2) printf("Utility functions loaded \n")
+
+if (showGUI) {
+	load_file("nrngui.hoc")
+}
+
+// load_file("parinit.hoc")		// Setup multisplit. If called before model creation bad things happen
+
+// if (msplit) {
+// 	startPar()
+// }

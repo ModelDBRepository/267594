@@ -1,0 +1,35 @@
+//moddir mods
+load_file("initLGMD.hoc")
+
+xpanel("Dewell et al. 2022 eLife")
+  xlabel("See the readme for more info")
+
+  xlabel("Choose a simulation")
+  xlabel("")
+// For simulations comparing excitation to field A vs. C shown in Figure 7B:
+  xlabel("** Comparing excitation to fields A & C **")
+  xlabel("** Saves results to 'data' directory (takes ~1 hr) **")
+  xbutton("Figure 7B","{load_file(\"Fig7B.hoc\")}")
+  xlabel("")
+
+// For simulations shown in figure 7C:
+  xlabel("** Compare percent excitation between fields **")
+  xlabel("** Saves results to 'data' directory (takes ~2 hr) **")
+  xbutton("Figure 7C","{load_file(\"Fig7C.hoc\")}")
+  xlabel("")
+
+// For simulations on field C retinotopic clustering figure 7D:
+  xlabel("** Field C retinotopic cluster **")
+  xlabel("** Saves results to 'data' directory (takes ~30 minutes) **")
+  xbutton("Figure 7D","{load_file(\"Fig7D.hoc\")}")
+  xlabel("")
+  
+// For simulations resulting in figure 7E and F:
+  xlabel("** Checkered coherence selectivity **")
+  xlabel("** Saves results to 'data' directory (takes ~1 hr) **")
+  xbutton("Figure 7E,F", "{load_file(\"Fig7E.hoc\")}")
+
+  xlabel(" ")
+  xbutton("Quit","quit()")
+xpanel()
+

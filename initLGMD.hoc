@@ -1,0 +1,39 @@
+
+{
+load_file("stdlib.hoc")
+load_file("stdrun.hoc")
+}
+
+
+func issplit() {	// to avoid errors if openmpi is not loaded (if it is, then this function will be overwritten)
+	return 0
+}
+
+load_file("stdutil.hoc")		// general utility procs and funcs (all model independent)
+
+load_file("LGMDreconstruction_NEURON.hoc")
+
+load_file("LGMDparams.hoc")		// Simulation header file that initializes settings and variables
+
+load_file("mview.hoc")		 	// load modelview library
+
+load_file("MorphologyUtilities.hoc")	// Procs and funcs related to morphology
+
+load_file("MembraneUtilities.hoc")	// Procs and funcs related to membrane conductances
+
+load_file("SimulationUtilities.hoc")	// Procs and funcs related simulations (i.e SaveData())
+
+if (verbosity > 2) printf("Utility functions loaded \n")
+
+load_file("parinit.hoc")
+
+load_file("VisualSimulations.hoc")
+load_file("LGMD_membrane.hoc")
+
+if (showGUI) {
+	load_file("initgui.hoc")
+}
+
+if (msplit) {
+ 	startPar()
+}

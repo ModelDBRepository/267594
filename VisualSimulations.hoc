@@ -1,0 +1,701 @@
+
+proc SynFileRead() { local i,n,flag,Ca,ts,gm,isp,remap localobj inFile, mapfile, tcl
+// SynFileRead( synlist, filename, Ca, mapping )
+// generates a list of synapse objects from text file "filename".
+// If Ca is false creates AlphaSynapses; if true creates AlphaSynapseCa (see mod file)
+// if optional 4 argument is given, synapse locations are remapped according to file
+
+	count=0
+	syntau=0
+	syng=0
+	syne=0
+	spont_rate=0
+	gm=-1
+	Ca=0
+	remap = 0
+	
+	synlist=$o1
+	synlist.remove_all()
+	filename = $s2
+	if (numarg() > 2) Ca=$3
+	
+	if (numarg()>3) {
+		tcl = new List()
+		remap=1
+		mapfile = new File($s4)
+		mapfile.ropen()
+		while (flag!=-1) {
+			flag = mapfile.gets(tmpstr)
+			num = sscanf(tmpstr, "Tines[%i]\t%s", &i, sect)
+			tcl.append(new String(sect))
+		}
+	}
+	
+	inFile = new File(filename)
+	flag = inFile.ropen()
+	if (flag==0) {
+		sprint( strtmp, "%s%s", syndir, filename)
+		inFile = new File(strtmp)
+		flag = inFile.ropen()
+		if (flag==0) {
+			sprint( filename, "%s/%s", syndir, filename)
+			inFile = new File(filename)
+			flag = inFile.ropen()
+		}
+		if (flag==0) {
+			printf("Error: File not found. SynFileRead\n")
+			return
+		}
+	}
+
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Time of Collision: %f", &t0)
+	if (verbosity > 1) printf("t0 = %f\n", t0)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Visual Stimulation Start Time: %f", &tstart)
+	if (verbosity > 1) printf("start time = %f\n", tstart)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Number of %s Synapses: %i", tmpstr, &count)
+	if (verbosity > 1) printf("# of synapses = %g\n", count)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Time Constant: %f", &syntau)
+	if (verbosity > 1) printf("synapse tau = %f\n", syntau)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Max Conductance: %f", &syng)
+	if (verbosity > 1) printf("synapse gmax = %f\n", syng)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Reversal Potential: %f", &syne)
+	if (verbosity > 1) printf("synapse reversal = %f\n", syne)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Kinematic parameters: %s", strtmp)
+	if (verbosity > 1) printf("Kinematic Parameters = %s\n", strtmp)
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "Spontaneous rate: %f", &spont_rate)
+	if (verbosity > 1) printf("Spontaneous rate = %f\n", spont_rate)
+	
+	/*
+	Time of Collision: 4373.58
+	Visual Stimulation Start Time: 600
+	Number of Excitatory Synapses: 129960
+	Time Constant: 0.3
+	Max Conductance: 0.008
+	Reversal Potential: 0
+	*/
+
+	if (issplit() == 1) {
+		isp = 1
+		stopPar()
+	}
+	//objref synvec[count]
+	for n=0,count-1 {
+		flag = inFile.gets(tmpstr)
+		num = sscanf( tmpstr, "%s %f %f", sect, &ts, &gm)
+		if (remap==1) {
+			num = sscanf(sect, "Tines[%i]", &i)
+			if (num>0) sect = tcl.o(i).s
+			if (strcmp(sect,"-1")==0) sect = tcl.o(i+1).s
+			if (strcmp(sect,"-1")==0) sect = tcl.o(i-1).s
+		}
+		if ((verbosity > 1) && (n==0)) printf("section: %s, time:%f, gmax: %f\n", sect, ts, gm)
+		if (flag != -1) {
+			//synvec[n] = new AlphaSynapse(0.5)
+			if ( Ca >= 1 ) { sprint(strtmp, "%s syn = new AlphaSynapseCa(0.5)", sect)
+			} else sprint(strtmp, "%s syn = new AlphaSynapse(0.5)", sect)
+			execute(strtmp)
+			syn.onset=ts
+			syn.tau=syntau
+			if (gm==-1) {
+				syn.gmax=syng
+			} else syn.gmax=gm
+			syn.e=syne
+			synlist.append(syn)
+			// sref.sec syn.loc(0.5)
+
+			//gensyn(synvec[n], sect, ts, syntau, syng, syne)
+		} else if (verbosity > 0) printf("failed to read synapse")
+	}
+
+	inFile.close()
+	
+	objref syn
+	if (isp==1) startPar()
+	//$o1=synvec
+	//return &synvec
+	//return count
+}
+
+
+proc TinePctRemap() { local cr,s,i,j,n,k,tn,nTine,nTrial,avgpct,isp,pcts localobj inFile, S,r,r2, mvd, Ssyn
+// TinePctRemap( filename, trial, scaling, fCrand )
+// Reads file "filename" which contains a list of Tine numbers and a percent of synapses 
+// to move from those sections to field C
+// if optional 2nd argument is given and >=0, sets which column of file to use (otherwise chosen at random)
+// if 3rd argin is given and >0, scales gmax of moved excitatory synapses
+// if 4th argin input and >0, all synapses are moved to FieldC[21]
+	
+	filename = $s1
+	inFile = new File(filename)
+	flag = inFile.ropen()
+	if (flag==0) {
+		sprint( strtmp, "%s%s", syndir, filename)
+		inFile = new File(strtmp)
+		flag = inFile.ropen()
+		if (flag==0) {
+			sprint( filename, "%s/%s", syndir, filename)
+			inFile = new File(filename)
+			flag = inFile.ropen()
+		}
+		if (flag==0) {
+			printf("Error: File not found. in TinePctRemap\n")
+			return
+		}
+	}
+
+	if (numarg() > 3) {
+		cr = $4
+	} else cr=-1
+	if (numarg() > 2) {
+		s = $3
+	} else s=-1
+	
+	flag = inFile.gets(tmpstr)
+	num = sscanf(tmpstr, "%f %f", &nTine, &nTrial)
+	if (verbosity > 2) printf("TinePctRemap: nTine = %d\n", nTine)
+
+	mvd = new List()
+	
+	if ( (numarg() > 1)&&($2>=0) ) {
+		k=$2%nTrial
+	} else {
+		r = new Random()
+		r.discunif(0, nTrial-1)
+		k=r.repick()
+	}
+	if (verbosity > 2) printf("TinePctRemap: using trial %d\n", k)
+	
+	if (issplit() == 1) {
+		isp = 1
+		stopPar()
+	}
+	strtmp = "%d"
+	for n=0,k {
+		sprint(strtmp, "%s%s", strtmp, "%f")
+	}
+	S = new String(strtmp)
+	
+	r2 = new Random()
+	r2.discunif(0, SectionListCount(Ctines)-1)
+	
+	avgpct=0
+	for n=0,nTine-1 {	// iterate through field A sections
+		flag = inFile.gets(tmpstr)
+		num = sscanf( tmpstr, S.s, &i, &pcts, &pcts, &pcts, &pcts, &pcts, &pcts, &pcts, &pcts, &pcts, &pcts)
+// 		if the same var is specified repeatedly, it will be the last value set by the format string
+		
+		avgpct += pcts/nTine
+		sprint(tmpstr, "Tines[%d]", i)
+		
+		Ssyn = get_subset(esyn, tmpstr) // List of synapses in specified section
+		mN = Ssyn.count()*pcts		// number of synapses to move (unrounded)
+		if (verbosity > 3) printf("TinePctRemap: moving %d of %d excitatory synapses in Tines[%d]\n", mN, Ssyn.count(), i)
+		
+// 		r.discunif(0, Ssyn.count()-1)	// random var of synapse indices
+		for j=0,mN-1 {	// iterate through synapses to move
+			k=int(j/pcts)
+
+			if (cr>0 ) {
+				FieldC[21] Ssyn.o(k).loc(0.5)	// move synapse to fixed field C section
+				mvd.append(Ssyn.o(k))
+
+			} else {
+				tn=r2.repick()
+				i=0
+				forsec Ctines {
+					if (i==tn) {
+						Ssyn.o(k).loc(0.5)	// move synapse to random field C section
+						mvd.append(Ssyn.o(k))
+					}
+					i+=1
+				}
+			}
+		}
+	}
+	if (verbosity > 2) printf("TinePctRemap: moved %d excitatory synapses (%f%)\n", mvd.count(), avgpct*100)
+
+	if (s>0)  {
+		RandRemove(mvd,s, esyn)
+// 		adjparams(mvd, "gmax", s, 1)
+	}
+	if (verbosity > 2) printf("TinePctRemap: removed %g% of excitatory synapses\n", $3*100)
+	
+	inFile.close()
+	
+	// move corresponding percent of inhibitory synapses to field B
+	mN = isyn.count()*avgpct	// number of synapses to move
+
+	r2 = new Random()
+	r2.discunif(0, SectionListCount("FieldB")-1)
+	for n=0,mN-1 {
+	
+		k=int(n/avgpct)
+	
+		tn=r2.repick()
+		i=0
+		forsec "FieldB" {
+			if (i==tn) isyn.o(k).loc(0.5)	// move synapse to random field B section
+			i+=1
+		}
+	}
+	if (verbosity > 2) printf("TinePctRemap: moved %d inhbitory synapses\n", mN)
+
+	
+	if (isp==1) startPar()
+	//$o1=synvec
+	//return &synvec
+	//return count
+}
+
+
+proc SynScrambler() {local count, n, i, k, ms	localobj r, sl, pc
+// SynScrambler( synlist, possible sections, seed )
+// SynScrambler( esyn, "Tines" )
+
+	ms = issplit()
+	if (ms) stopPar()
+	if (numarg()<3) {
+		pc = new ParallelContext()	// only known object in nrn verse with clock function
+		r = new Random(pc.time)	// random object with unique seed
+	} else r = new Random($3)	// random object with specific seed
+	
+	if (argtype(2)==2)	{
+		sl = new SectionList()
+		forall ifsec $s2 sl.append()
+	} else if (argtype(2)==1)	sl = $o2
+	r.discunif(0, SectionListCount(sl)-1)	// discrete uniform with 1 val per section
+
+	for n=0,$o1.count()-1 {	// loop through synapse list
+		i=0
+		k=r.repick()	// get rand index for that synapse
+		forsec sl {
+			if (i==k) $o1.o(n).loc(0.5)	// move synapse to section with random index
+			i+=1
+		}
+	}
+	if (ms) startPar()
+
+}
+
+proc ListSubset() {local i, n, nmv	localobj r
+// ListSubset(existing list, percent to transfer, new list)
+
+	r = new Random()
+	r.discunif(0, $o1.count()-1)
+	nmv = $o1.count()*$2
+	n=0
+	while (n<int(nmv)) {
+		i = r.repick()
+		if ($o3.index($o1.o(i))==-1) {
+			n+=1
+			$o3.append($o1.o(i))
+		}
+	}
+}
+
+proc FieldSynShift() {localobj subE, subI
+// procedure to move synaptic inputs between dendritic fields
+// FieldSynShift(move, remove)
+// 	both inputs are 0-1 (0 does nothing, 1 (re)moves 100%)
+// 	if no inputs are given, 100% are moved and 60% are then removed
+
+	if ((numarg()==0) || ($1==1)) {		// if all synapses are to be moved
+		SynScrambler( esyn, Ctines )	// move excitatory synapses to random field C sections
+		SynScrambler( isyn, "FieldB" )	// move inhibitory synapses to random field B sections
+		if (numarg()==2) {
+			RandRemove(esyn,$2)
+		} else {
+			RandRemove(esyn,0.6 )
+		}
+		
+	} else {	// if a subset of synapses are to be moved
+		subI = new List()
+		subE = new List()
+		ListSubset(esyn,$1,subE)
+		ListSubset(isyn,$1,subI)
+	
+		SynScrambler( subE, Ctines)
+		if (verbosity > 2) printf("FieldSynShift: moved %d synapses ... \n", subE.count())
+		SynScrambler( subI, "FieldB" )
+		if (verbosity > 2) printf("FieldSynShift: moved %d synapses ... \n", subI.count())
+
+		if (numarg()==2) {
+			RandRemove(subE,$2, esyn)
+		} else {
+			RandRemove(subE,0.6, esyn)
+		}
+	}
+}
+
+proc FieldCcluster() {local tot,n,i,x,k,j,ms,S	localobj V,ix,tx,syns
+// FieldCcluster(steepness(µm))
+
+	ms = issplit()
+	if (ms) stopPar()
+	
+	distance()
+	
+	if (numarg()>0) S=$1 else S=75
+	n = SectionListCount("FieldC")	// number of sections in field
+	
+	syns = new List()
+	V = new Vector(n)
+	for i = 0,esyn.count()-1 {
+		// get synapses in each field C section
+		{ esyn.o(i).get_loc() {if (sscanf(secname(), "FieldC[%d]", &j)) syns.append(esyn.o(i))} pop_section() }
+	}
+	tot = syns.count()	// total number of synapses to be moved
+	if (verbosity > 2) printf("FieldCcluster: center section is %s \n", secname())
+	if (tot==0) {
+		return
+	}
+	mx = tot/(S/2)
+	if (verbosity > 2) printf("FieldCcluster: moving %d synapses with max of %d... \n", tot,mx)
+
+	V = new Vector(tot)
+	ix = new Vector(tot)
+	for i = 0,tot-1 V.x(i)=syns.o(i).onset	// onset time of each synapse
+	V.sortindex(ix)	// get order of onset times
+	
+	V = new Vector(n)
+	i=0
+	forsec "FieldC" {
+		D = distance(0.5)	//distance to each field C section from central section
+		V.x(i) = int(mx/(1+exp((75-D)/S)))
+		i+=1
+	}
+	tx = new Vector(n)
+	V.sortindex(tx)
+	
+	k=0
+	for i=0,n-1 {
+		if (k>=tot) { // already moved all synapses
+			break
+		} else if (k+V.x(i)<tot) {//plenty left to move
+			if (verbosity > 3) printf("FieldCcluster: moving %d synapses to FieldC[%d]\n",V.x(i),tx.x(i))
+			FieldC[tx.x(i)] for j = k,k+V.x(i)-1 syns.o(ix.x(j)).loc(0.5)
+			k+=V.x(i)
+		} else { // this is the last section to move them to
+			if (verbosity > 3) printf("FieldCcluster: moved %d synapses to FieldC[%d]\n", tot-k,tx.x(i))
+			FieldC[tx.x(i)] for j = k,tot-1 syns.o(ix.x(j)).loc(0.5)
+			k=tot
+		}
+	}
+	if (verbosity > 2) printf("FieldCcluster: moved %d synapses to %d sections\n", k,i+1)
+	if (ms) startPar()
+
+}
+
+
+proc RandRemove() {local nmv,n,i,k,ms	localobj sub, r,V
+// procedure to remove a random subset of list items. set ratio to remove (0-1)
+// RandRemove(List, [0-1], secondary list)
+
+	if ($2==0) {
+		if (verbosity > 2) printf("RandRemove: removing 0 items from %s... \n", $o1)
+		return
+	}
+
+	ms = issplit()
+	if (ms) stopPar()
+	
+	sub = new List()
+	r = new Random()
+	r.discunif(0, $o1.count()-1)
+	nmv = int($o1.count()*$2)
+	V = new Vector(nmv)
+	V.setrand(r)
+	V.sort()
+	V.reverse()
+	if (verbosity > 2) printf("RandRemove: removing %d items from %s... \n", nmv, $o1)
+	
+	for n=0,nmv-1 {
+		if (V.x(n)>$o1.count())	k=$o1.count() else K=V.x(n)
+		if (numarg()>2) $o3.remove($o3.index($o1.o(k)))
+		$o1.remove(k)
+	}
+	if (verbosity > 2) printf("RandRemove: removed %d items ... \n", nmv)
+	
+	if (ms) startPar()	
+}
+
+func SpontSyns() { local nSyn,ms,k,i,nt, seed,mint,maxt,fs	localobj pc, r,r2, sl,SN
+// SpontSyns(synlist, sections, syn, rate, max time, seed, min time)
+// 	create spontaneous synapses to sections (2nd argin) with the same tau and conductance as syn (3rd argin)
+// 	and add them to the specified synlist (1st argin). The spontaneous rate is per ms (4th argin)
+
+	maxt = $5
+	if ((numarg()>6) && (argtype(7)==0)) {
+		mint = $7
+	} else {
+		mint=0
+	}
+
+	if (argtype(2)==2)	{
+		sl = new SectionList()
+		forall ifsec $s2 sl.append()
+	} else if (argtype(2)==1)	sl = $o2
+
+	SN= new String()
+	syn = $o3
+	classname(syn, SN.s)
+	MS_ = new MechanismStandard(SN.s)
+	MS_.in(syn)
+
+	fs = 20	//sampling rate (/ms)
+	nt = (maxt-mint)*fs
+	nSyn = int($4*(maxt-mint))
+	if (verbosity > 1) printf("SpontSyns: creating %g synapses ... \n", nSyn)
+
+	if ((numarg()>5) && (argtype(6)==0)) {
+		seed = $6
+	} else {
+		pc = new ParallelContext()
+		seed = pc.time()
+	}
+	r = new Random(seed)	//random object for sampling uniform distribution
+	r2 = new Random(seed)	//2nd random object
+
+	ms = issplit()
+	if (ms) stopPar()
+	
+	r.discunif(0, nt)	// discrete uniform sampling time steps
+	r2.discunif(0, SectionListCount(sl)-1)	// discrete uniform sampling sections
+
+	sprint( SN.s, "syn = new %s()", SN.s)
+	for n=0,nSyn-1 {	// loop through synapse list
+
+// 		syn = new AlphaSynapse()
+		execute(SN.s)
+			
+		MS_.set("onset", r.repick()/fs+mint)
+// 		syn.onset = r.repick()/fs+mint	// get rand time index for synapse
+		k=r2.repick()	// get rand section index for synapse
+		i=0
+		forsec sl {
+			if (i==k) {
+				syn.loc(0.5)	// move synapse to section with random index
+				MS_.out(syn)
+			}
+			i+=1
+		}
+		$o1.append(syn)		// add synapse to list
+	}
+	objref syn
+	if (ms) startPar()
+
+	return seed
+}
+
+
+proc adjparams() {local mult	localobj tmplist
+// adjparams(synlist, synapse parameter, new value, multiply)
+
+	mult = 0
+	tmplist = $o1
+	val = $3
+	if (numarg()>3) mult = $4
+	
+	//classname(tmplist.o(0), strtmp)
+	//ms = new MechanismStandard(strtmp)
+	
+	for i=0,tmplist.count()-1 {
+		
+		syn = tmplist.o(i)
+		if (mult == 0) {
+			sprint(tmpstr, "syn.%s = val", $s2)
+		} else sprint(tmpstr, "syn.%s = syn.%s*val", $s2, $s2)
+		//sprint(tmpstr, "tmplist.o(i).%s = val", $s2)
+		execute(tmpstr)
+		
+//		ms.in(tmplist.o(i))
+// 		ms.set($s2, val)
+// 		ms.out(tmplist.o(i))
+	}
+
+}
+
+proc genbursts() {local ns,k,a,scale	localobj sub
+// genbursts( val, rescale )
+// val is multiple of change within burst periods
+// scale is multiple of percent of change to cancel out in non-burst periods (0-1)
+// used to produce onset responses to new coarse pixels matching the data.
+
+	//	t0 = 2500 4400 4770 4930 5010 5080, t1=t0+25
+	//	2040 2550 4160 4560 4715 4790 4860
+	scale=1
+	a=2
+	if (numarg() > 0) a=$1
+	if (numarg() > 1) scale=$2
+	sub = new List()
+	ns = esyn.count()
+	
+	findobj( sub, esyn, "onset", 2160, 2230)
+	findobj( sub, esyn, "onset", 2680, 2720)
+	findobj( sub, esyn, "onset", 4370, 4410)
+	findobj( sub, esyn, "onset", 4750, 4780)
+	findobj( sub, esyn, "onset", 4915, 4945)
+	findobj( sub, esyn, "onset", 5000, 5020)
+// 	findobj( sub, esyn, "onset", 5040, 5060)
+	
+	k = sub.count()
+	
+	if (scale>0)  adjparams(esyn, "gmax", (ns-k*scale*(a-1))/ns, 1)
+	adjparams(sub,"gmax", a, 1)
+}
+
+proc adjsynswindow() {local mult, t1, t2	localobj tmplist, sub
+// adjsynswindow( synlist, synapse parameter, t1, t2, new value, multiply)
+
+	mult = 0
+	tmplist = $o1
+	val = $5
+	t1 = $5
+	t2 = $5
+	if (numarg()>5) mult = $6
+	sub = new List()
+	
+	//classname(tmplist.o(0), strtmp)
+	//ms = new MechanismStandard(strtmp)
+	
+	findobj( sub, tmplist, "onset", t1, t2 )
+	
+	for i=0,sub.count()-1 {
+		
+		syn = sub.o(i)
+		if (mult == 0) {
+			sprint(tmpstr, "syn.%s = val", $s2)
+		} else sprint(tmpstr, "syn.%s = syn.%s*val", $s2, $s2)
+		//sprint(tmpstr, "tmplist.o(i).%s = val", $s2)
+		execute(tmpstr)
+		
+//		ms.in(sub.o(i))
+// 		ms.set($s2, val)
+// 		ms.out(sub.o(i))
+	}
+
+}
+
+proc VisualStim() { local i, n, count, newesyn, newisyn, ims,sca, tmp,tmp2,tmp3	localobj sl
+// VisualStim( filename, esynfile, isynfile, section list, tstop)
+// VisualStim( filename, 0, 0 (, section list, tstop) )
+
+	tmp = dt		// store dt value to reset at end
+	tmp2 = steps_per_ms
+	tmp3 = seclist
+	
+	steps_per_ms = 0.25		// set plotting and gvec interval (1/ms)
+	dt = 0.02		// set dt step to short interval (ms)
+	
+// 	seclist = 1
+	subdir = "visual"
+	
+	sprint(strtmp,"mkdir %s/%s", DATADIR, subdir)
+	system(strtmp)
+	
+	n = numarg()
+	datafile = $s1
+
+	if (argtype(2)==2)	{
+		newesyn=1
+		esynfullpath = $s2
+		esyn = new List()
+	} else newesyn=0
+	if (argtype(3)==2)	{
+		newisyn=1
+		isynfullpath = $s3
+		isyn = new List()
+	} else newisyn=0
+// 	simsecs = $o4
+
+	if (n>=4) {
+		if (argtype(4)==1) {
+			SaveSections()
+			sl = $o4
+		} else if (argtype(4)==0) {
+			SaveSections($4)
+		} else SaveSections()
+	}
+	if (object_id(sl,1) == -1) {
+		sl = simsecs_G_ 
+		if (verbosity > 2) printf("VisualStim: using simsecs_G_ ... \n")
+	} else {
+		simsecs_G_ = sl
+		if (verbosity > 2) printf("VisualStim: using new SectionList. Changing simsecs_G_ ... \n")
+	}
+	
+// 	t_rec = new Vector()
+// 	t_rec.record(&t)
+// 
+// 	objref rvec[count]
+
+	count = SectionListCount(sl)
+	objref rvec_G_[count]
+	objref objtmp[count]
+	
+	i=0
+	forsec sl {
+		objtmp[i] = new IClamp(0.5)
+		rvec_G_[i] = new Vector()
+		if (recCa && ismembrane("ca_ion")) {
+			rvec_G_[i].record(objtmp[i], &cai(0.5), RecDt)
+		} else {
+			rvec_G_[i].record(objtmp[i], &v(0.5), RecDt)
+		}
+		rvec_G_[i].label(secname())
+		i=i+1
+	}
+
+	if (verbosity > 1) printf("loading excitation ... \n")
+	if (synCa) sca=1 else sca = 0
+	if (verbosity > 2) printf("sca: %g \n",sca)
+	
+	if (newesyn) {
+		if (AEC) {
+			SynFileRead(esyn,esynfullpath,sca,AECmap)
+		} else SynFileRead(esyn,esynfullpath,sca)
+	}
+	if (verbosity > 1) printf("done.\n")
+
+	if (verbosity > 1) printf("loading inhibition ... \n")
+	if (newisyn) SynFileRead(isyn,isynfullpath)
+	if (verbosity > 1) printf("done.\n")
+
+	if (n > 4) {
+		tstop = $5
+	} else tstop = t0+250
+
+	if (verbosity > 1) printf("VisualStim: saving param file ... \n")
+
+	sprint(strtmp, "%s/%s/%s_prm.txt", DATADIR, subdir, datafile )
+	SaveParams( strtmp )
+	
+	if (verbosity > 0) printf("VisualStim: running simulation ... \n")
+	
+	run()
+
+	if (verbosity > 0) printf("VisualStim: saving data ... \n")
+
+	sprint( filename, "%s/%s/%s", DATADIR, subdir, datafile )
+	
+	sprint( headerstr, "Visual stimulus simulation\nt0=%g\ttstart=%g\nExcitation: %s\nInhibition: %s\n",\
+		t0, tstart, esynfullpath, isynfullpath )
+		
+	SaveData( filename, headerstr, count, 0, 1 )
+
+	if (verbosity > 1) printf("visual stimuli finished\n")
+
+	dt = tmp
+	steps_per_ms = tmp2
+	seclist = tmp3
+
+}
+

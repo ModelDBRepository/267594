@@ -1,0 +1,103 @@
+
+load_file("initLGMD.hoc")
+
+
+/* --- Load synapses for and simulate a black loom with all excitation impinging field A --- */
+esynfullpath = "excsyn_50_158_0_0_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_0_0_onsetTimes.hoc"
+
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+
+VisualStim( "loom_A_100pct", 0, 0, simsecs_G_ )
+
+
+/* --- Move all excitation from field A to field C and remove 60% --- */
+FieldSynShift(1,0.6)
+VisualStim( "loom_C_100pct", 0, 0, simsecs_G_ )
+
+/* --- Move 90% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.9,0.6)
+VisualStim( "loom_C_90pct", 0, 0, simsecs_G_ )
+
+/* --- Move 80% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.8,0.6)
+VisualStim( "loom_C_80pct", 0, 0, simsecs_G_ )
+
+/* --- Move 70% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.7,0.6)
+VisualStim( "loom_C_70pct", 0, 0, simsecs_G_ )
+
+/* --- Move 60% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.6,0.6)
+VisualStim( "loom_C_60pct", 0, 0, simsecs_G_ )
+
+/* --- Move 50% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.5,0.6)
+VisualStim( "loom_C_50pct", 0, 0, simsecs_G_ )
+
+/* --- Move 40% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.4,0.6)
+VisualStim( "loom_C_40pct", 0, 0, simsecs_G_ )
+
+/* --- Move 30% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.3,0.6)
+VisualStim( "loom_C_30pct", 0, 0, simsecs_G_ )
+
+/* --- Move 20% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.2,0.6)
+VisualStim( "loom_C_20pct", 0, 0, simsecs_G_ )
+
+/* --- Move 10% of excitation from field A to field C and remove 60% --- */
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+FieldSynShift(0.1,0.6)
+VisualStim( "loom_C_10pct", 0, 0, simsecs_G_ )
+
+if (verbosity > 1) printf("\nFinished simulations for Figure 7C\n")

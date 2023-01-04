@@ -1,0 +1,46 @@
+
+load_file("initLGMD.hoc")
+
+
+/* --- Load synapses and simulate a checkerboard loom --- */
+esynfullpath = "excsyn_50_158_0_0_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_0_0_onsetTimes.hoc"
+
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+
+
+TinePctRemap("tinequadpct.txt", 0, 0.6)
+VisualStim( "checker_loom_coherence_100", 0, 0, simsecs_G_ )
+
+/* --- Load synapses and simulate an 80% spatially coherent checkerboard loom --- */
+esynfullpath = "excsyn_50_158_2_2_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_2_2_onsetTimes.hoc"
+esyn = new List()
+isyn = new List()
+SynFileRead(esyn,esynfullpath,1)
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+TinePctRemap("tinequadshift6deg.txt", 0, 0.4)
+VisualStim( "checker_loom_coherence_80", 0, 0, simsecs_G_ )
+
+esynfullpath = "excsyn_50_158_2_8_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_2_8_onsetTimes.hoc"
+SynFileRead(esyn,esynfullpath,1)
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+TinePctRemap("tinequadshift12deg.txt", 0, 0.4)
+VisualStim( "checker_loom_coherence_60", 0, 0, simsecs_G_ )
+
+esynfullpath = "excsyn_50_158_2_16_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_2_16_onsetTimes.hoc"
+SynFileRead(esyn,esynfullpath,1)
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+TinePctRemap("tinequadspatialpct.txt", 0, 0.4)
+VisualStim( "checker_loom_coherence_10", 0, 0, simsecs_G_ )
+
+if (verbosity > 1) printf("\nFinished simulations for Figure 7E\n")

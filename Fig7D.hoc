@@ -1,0 +1,20 @@
+
+load_file("initLGMD.hoc")
+
+
+/* --- Load synapses and simulate an ON loom with all excitation impinging field C --- */
+esynfullpath = "excsyn_50_158_0_0_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_0_0_onsetTimes.hoc"
+
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+
+FieldSynShift(1,0.6)
+VisualStim( "loom_C_random", 0, 0, simsecs_G_ )
+
+FieldC[434] FieldCcluster(80)
+VisualStim( "loom_C_retinotopic_cluster", 0, 0, simsecs_G_ )
+
+if (verbosity > 1) printf("\nFinished simulations for Figure 7D\n")

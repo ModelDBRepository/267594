@@ -1,0 +1,33 @@
+
+load_file("initLGMD.hoc")
+
+
+/* --- Load synapses for and simulate a black loom with all excitation impinging field A --- */
+esynfullpath = "excsyn_50_158_0_0_onsetTimes.hoc"
+isynfullpath = "inhsyn_50_158_0_0_onsetTimes.hoc"
+
+esyn = new List()
+SynFileRead(esyn,esynfullpath,synCa)
+isyn = new List()
+SynFileRead(isyn,isynfullpath,0)
+SynScrambler(isyn, Ctines)
+
+VisualStim( "OFF_loom_A_100pct", 0, 0, simsecs_G_ )
+
+
+/* --- Move all excitation from field A to field C --- */
+FieldSynShift(1,0)
+VisualStim( "ON_loom_C_100pct", 0, 0, simsecs_G_ )
+
+
+/* --- Reduce excitatory synapse conduction to field C by 60% --- */
+adjparams(esyn,"gmax",0.4,1)	// multiply gmax by 0.4
+VisualStim( "ON_loom_C_40pct_gmax", 0, 0, simsecs_G_ )
+
+
+/* --- Remove 60% of excitatory synapses to field C --- */
+adjparams(esyn,"gmax",2.5,1)	// multiply gmax by 2.5 to undo prior scaling
+RandRemove(esyn,0.6)			// remove a random subset of synapses
+VisualStim( "ON_loom_C_40pct_number", 0, 0, simsecs_G_ )
+
+if (verbosity > 1) printf("\nFinished simulations for Figure 7B\n")
